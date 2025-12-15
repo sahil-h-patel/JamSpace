@@ -1,0 +1,17 @@
+{
+  "name": "jamspace",
+  "version": "1.0.0",
+  "description": "A web-based application designed for a live, collaborative musical performance. It transforms the audience's smartphones into networked instruments, allowing them to participate in an aleatoric (chance-based) composition.",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build"
+  },
+  "devDependencies": {
+    "turbo": "^2.6.1"
+  },
+  "packageManager": "npm@8.5.0"
+}
