@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 
 // 1. Setup the connection
 // In production, use the env variable. In dev, fallback to localhost.
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+const SERVER_URL = 'jamspace-backend.up.railway.app';
 
 export const socket: Socket = io(SERVER_URL, {
   autoConnect: false, // We connect manually when the user clicks "Join" or "Create"

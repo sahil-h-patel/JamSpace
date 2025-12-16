@@ -5,12 +5,12 @@ import cors from 'cors';
 import { registerMusicHandlers } from './src/handlers/music';
 import { registerSessionHandlers } from './src/handlers/session';
 
-const PORT = process.env.PORT || 3001;
+const PORT =  3001;
 
 const allowedOrigins = [
   "http://localhost:5173", 
   "http://127.0.0.1:5173",
-  process.env.CLIENT_URL
+  "jamspace.up.railway.app"
 ].filter(Boolean) as string[];
 
 const app = express();
