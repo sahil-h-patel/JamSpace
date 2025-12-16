@@ -9,7 +9,7 @@
     "redis:stop": "brew services stop redis",
     "redis:restart": "brew services restart redis",
     "dev": "npm run redis:start && tsx watch server.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/server.js"
   },
   "keywords": [],
   "author": "",

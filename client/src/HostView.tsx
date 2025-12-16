@@ -5,10 +5,10 @@ import { PRESET_PHRASES, type Phrase } from './data/presets';
 import { useSession } from './context/session';
 import { socketService, socket } from './services/socket'
 import { useEffect, useRef, useState } from "react";
-import abcjs from 'abcjs'
+import abcjs, { type TuneObject } from 'abcjs'
 
 interface AbcSynth {
-    init: (options: { visualObj: any }) => Promise<void>;
+    init: (options: { visualObj: TuneObject }) => Promise<void>;
     prime: () => Promise<{duration: number}>;
     start: () => Promise<void>;
     stop: () => void;
