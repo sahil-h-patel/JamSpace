@@ -49,8 +49,8 @@ export const socketService = {
     socket.emit('C:start-performance', { roomCode });
   },
 
-  stopPerformance: (roomCode: string) => {
-    socket.emit('C:stop-performance', { roomCode });
+  stopPerformance: (roomCode: string, phraseId: string) => {
+    socket.emit('C:stop-performance', { roomCode, phraseId });
   },
 
   // --- Music Logic ---

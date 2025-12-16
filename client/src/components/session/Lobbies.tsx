@@ -1,7 +1,5 @@
-import { Box, Button, Flex, Heading, Text, VStack, HStack, Card } from '@chakra-ui/react';
+import { Box, Button, Flex, Heading, Text, VStack} from '@chakra-ui/react';
 import { useSession } from '../../context/session';
-import { MusicNotation } from '../ui/music-notation';
-import { PRESET_PHRASES } from '../../data/presets';
 import { socket, socketService } from '../../services/socket';
 import { useRoomListeners } from '@/hooks/useRoomListeners';
 
@@ -42,21 +40,20 @@ export const HostLobby = () => {
       </Flex>
 
       {/* 2. Bottom: Phrase Preview Scroller */}
-      <Box h="250px" borderTop="1px solid" borderColor="gray.700" pt={4}>
+      {/* <Box h="250px" borderTop="1px solid" borderColor="gray.700" pt={4}>
         <Text fontSize="sm" mb={4} color="gray.400">Available Phrases</Text>
         <HStack overflowX="auto" gap={4} pb={4} css={{ '&::-webkit-scrollbar': { display: 'none' } }}>
           {PRESET_PHRASES.map(phrase => (
             <Card.Root key={phrase.id} minW="300px" bg="gray.800" borderColor="gray.700" color="white">
               <Card.Body p={3}>
                 <Box bg="white" borderRadius="sm" p={1}>
-                  {/* Preview only - no click handler */}
                   <MusicNotation abc={phrase.abc} scale={0.8} />
                 </Box>
               </Card.Body>
             </Card.Root>
           ))}
         </HStack>
-      </Box>
+      </Box> */}
     </Flex>
   );
 };

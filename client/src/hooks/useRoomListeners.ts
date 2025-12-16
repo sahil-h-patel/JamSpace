@@ -3,7 +3,7 @@ import { socket } from '../services/socket';
 import { useSession } from '../context/session';
 
 export const useRoomListeners = () => {
-  const { setParticipants } = useSession();
+  const { setParticipants, setStatus } = useSession();
 
   useEffect(() => {
     const handlePlayerJoined = (payload: { id: string; name: string }) => {
@@ -19,12 +19,19 @@ export const useRoomListeners = () => {
       setParticipants((prev) => prev.filter((p) => p.id !== payload.playerId));
     };
 
+    // --- NEW HANDLER ---
+    const handleSessionStarted = () => {
+        console.log('GO! Session started.');
+        setStatus('active');
+    };
+
     socket.on('S:player-joined', handlePlayerJoined);
     socket.on('S:player-left', handlePlayerLeft);
-
+    socket.on('S:session-started', handleSessionStarted); // <--- Listen
     return () => {
       socket.off('S:player-joined', handlePlayerJoined);
       socket.off('S:player-left', handlePlayerLeft);
+      socket.off('S:session-started', handleSessionStarted); // <--- Cleanup
     };
-  }, [setParticipants]);
+  }, [setParticipants, setStatus]);
 };

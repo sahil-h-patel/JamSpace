@@ -1,17 +1,24 @@
-import { Box, Container, Heading, Text, SimpleGrid } from "@chakra-ui/react";
+import { Box, Container, Heading, Text, SimpleGrid, Icon } from "@chakra-ui/react";
 import { MusicNotation } from './components/ui/music-notation';
 import { PRESET_PHRASES, type Phrase } from './data/presets';
 import { socketService } from './services/socket';
 import { useSession } from './context/session';
+import { useState } from "react";
+import { Music } from "lucide-react";
 
 // --- The Performance Button ---
-const PerformanceButton = ({ phrase, roomCode }: { phrase: Phrase, roomCode: string }) => {
+const PerformanceButton = ({ phrase, roomCode, isActive, onClick }: { phrase: Phrase, roomCode: string, isActive: boolean, onClick: (id: string) => void}) => {
+    
     const handleClick = () => {
-        // This is the core action: Send the ID to the server
-        socketService.playPhrase(roomCode, phrase.id);
-        
-        // Optional: Add visual feedback (like a ripple effect or active state)
-        // You could also track 'activePhraseId' in context to highlight the currently playing one.
+        if (isActive) {
+            // If already active, toggle OFF
+            socketService.stopPhrase(roomCode);
+            onClick(''); // Clear local state
+        } else {
+            // If new, toggle ON
+            socketService.playPhrase(roomCode, phrase.id);
+            onClick(phrase.id); // Set local state
+        }
     };
 
     return (
@@ -32,9 +39,17 @@ const PerformanceButton = ({ phrase, roomCode }: { phrase: Phrase, roomCode: str
             }}
             w="100%"
         >
-            <Text fontWeight="bold" fontSize="lg" mb={2} color="gray.700">
-                {phrase.name}
-            </Text>
+            {isActive && (
+                <Icon 
+                    as={Music} 
+                    position="absolute" 
+                    top={2} 
+                    right={2} 
+                    color="cyan.500" 
+                    className="animate-pulse" 
+                    zIndex={2}
+                />
+            )}
             <Box pointerEvents="none">
                 <MusicNotation abc={phrase.abc} id={`player-${phrase.id}`} scale={1.1} />
             </Box>
@@ -46,9 +61,9 @@ const PerformanceButton = ({ phrase, roomCode }: { phrase: Phrase, roomCode: str
 
 function PlayerView() {
   const { roomCode } = useSession();
+  const [activePhraseId, setActivePhraseId] = useState<string>('');
 
   if (!roomCode) return <Text>Error: No Room Code</Text>;
-
   return (
     <Box bg="gray.100" minH="100vh" pb={10}>
         {/* Header */}
@@ -69,6 +84,8 @@ function PlayerView() {
                         key={phrase.id} 
                         phrase={phrase} 
                         roomCode={roomCode} 
+                        isActive={activePhraseId === phrase.id}
+                        onClick={setActivePhraseId}
                     />
                 ))}
             </SimpleGrid>

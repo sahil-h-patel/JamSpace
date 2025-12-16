@@ -1,5 +1,5 @@
 import { AbsoluteCenter, Button, Field, Flex, Heading, Input, Text } from "@chakra-ui/react"
-import { Link, useNavigate } from "react-router"
+import { useNavigate } from "react-router"
 import { socket, socketService } from './services/socket';
 import { useEffect, useState } from "react";
 import { useSession, type Participant } from "./context/session";
@@ -69,7 +69,6 @@ function JoinSession() {
             <Button
               onClick={handleConnect}
               >Connect</Button>
-            <Link to="/"><Button>Next</Button></Link>
           </Flex>
         </Flex>
       </AbsoluteCenter>

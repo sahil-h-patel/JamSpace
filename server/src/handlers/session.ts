@@ -77,4 +77,10 @@ export function registerSessionHandlers(io: Server, socket: Socket, ) {
             console.log(`Player ${socket.id} left room ${roomCode}`);
         }
     });
+    socket.on('C:start-performance', (payload: { roomCode: string }) => {
+        const { roomCode } = payload;
+        // Broadcast to everyone in the room (Host + Players)
+        io.to(roomCode).emit('S:session-started'); 
+        console.log(`Session started for room: ${roomCode}`);
+    });
 }

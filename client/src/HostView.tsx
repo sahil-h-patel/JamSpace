@@ -1,12 +1,24 @@
 import { Box, Flex, Heading, Text, VStack, SimpleGrid, Icon, HStack } from "@chakra-ui/react";
 import { Star, User, Music } from 'lucide-react';
-import abcjs from 'abcjs';
-
 import { MusicNotation } from './components/ui/music-notation';
 import { PRESET_PHRASES, type Phrase } from './data/presets';
 import { useSession } from './context/session';
+import { socketService, socket } from './services/socket'
+import { useEffect, useRef, useState } from "react";
+import abcjs from 'abcjs'
 
-// --- Sub-Components ---
+interface AbcSynth {
+    init: (options: { visualObj: any }) => Promise<void>;
+    prime: () => Promise<{duration: number}>;
+    start: () => Promise<void>;
+    stop: () => void;
+}
+
+interface ActiveLoop {
+    phraseId: string;
+    shouldLoop: boolean;
+    synth: AbcSynth | null;
+}
 
 const ParticipantRow = ({ name, isHost }: { name: string, role: string, isHost?: boolean }) => (
     <Flex 
@@ -31,33 +43,47 @@ const ParticipantRow = ({ name, isHost }: { name: string, role: string, isHost?:
     </Flex>
 );
 
-const PhrasePreview = ({ phrase }: { phrase: Phrase }) => {
-    // Helper to play local audio for the host (preview)
-    const playPreview = () => {
-        const synth = new abcjs.synth.CreateSynth();
-        const visualObj = abcjs.renderAbc("*", phrase.abc)[0];
-        synth.init({ visualObj }).then(() => synth.prime()).then(() => synth.start());
+const JamButton = ({ phrase, roomCode, isActive }: { phrase: Phrase, roomCode: string, isActive: boolean }) => {
+    
+    const handleClick = () => {
+        if (isActive) {
+            socketService.stopPhrase(roomCode);
+        } else {
+            socketService.playPhrase(roomCode, phrase.id);
+        }
     };
 
     return (
         <Box
             as="button"
-            onClick={playPreview}
+            onClick={handleClick}
             bg="white"
             p={4}
             borderRadius="xl"
             boxShadow="sm"
             border="1px solid"
             borderColor="gray.200"
-            transition="all 0.2s"
-            _hover={{ transform: "translateY(-2px)", boxShadow: "md", borderColor: "cyan.400" }}
+            transition="all 0.1s"
+            _active={{ 
+                transform: "scale(0.98)", 
+                borderColor: "cyan.500",
+                bg: "cyan.50" 
+            }}
             textAlign="left"
+            overflow="hidden"
+            position="relative"
         >
-            <HStack justify="space-between" mb={2}>
-                <Text fontWeight="bold" color="gray.700">{phrase.name}</Text>
-                <Icon as={Music} size={'md'} color="gray.400" />
-            </HStack>
-            {/* The visual notation */}
+            {isActive && (
+                <Icon 
+                    as={Music} 
+                    position="absolute" 
+                    top={2} 
+                    right={2} 
+                    color="cyan.500" 
+                    className="animate-pulse" 
+                    zIndex={2}
+                />
+            )}
             <Box pointerEvents="none"> 
                 <MusicNotation abc={phrase.abc} id={`host-${phrase.id}`} scale={0.8} />
             </Box>
@@ -69,11 +95,96 @@ const PhrasePreview = ({ phrase }: { phrase: Phrase }) => {
 
 function HostView() {
   const { roomCode, participants } = useSession();
+  const [myActivePhraseId, setMyActivePhraseId] = useState<string | null>(null);
 
+  // Map stores the Loop Controller for each player
+  const loopsRef = useRef<Map<string, ActiveLoop>>(new Map());
+
+  useEffect(() => {
+    const handlePhrasePlayed = async (payload: { playerId: string, phraseId: string }) => {
+        const { playerId, phraseId } = payload;
+        
+        if (playerId === socket.id) setMyActivePhraseId(phraseId);
+
+        // 1. CLEANUP
+        if (loopsRef.current.has(playerId)) {
+            const oldLoop = loopsRef.current.get(playerId)!;
+            oldLoop.shouldLoop = false;
+            if (oldLoop.synth) oldLoop.synth.stop();
+            loopsRef.current.delete(playerId);
+        }
+
+        // 2. SETUP
+        const loopData: ActiveLoop = {
+            phraseId,
+            shouldLoop: true,
+            synth: null
+        };
+        loopsRef.current.set(playerId, loopData);
+
+        const phrase = PRESET_PHRASES.find(p => p.id === phraseId);
+        if (!phrase) return;
+
+        // 3. EXECUTE LOOP
+        while (loopData.shouldLoop) {
+            const synth = new abcjs.synth.CreateSynth() as unknown as AbcSynth;
+            loopData.synth = synth;
+            
+            const visualObj = abcjs.renderAbc("*", phrase.abc)[0];
+
+            try {
+                await synth.init({ visualObj });
+                
+                // prime() calculates the audio buffer and returns the DURATION
+                const result = await synth.prime(); 
+                const durationMs = result.duration * 1000;
+
+                // Start playback (resolves immediately)
+                await synth.start(); 
+
+                // --- CRITICAL FIX: WAIT FOR AUDIO TO FINISH ---
+                // We pause the loop for the exact length of the audio file
+                if (loopData.shouldLoop) {
+                    await new Promise(resolve => setTimeout(resolve, durationMs));
+                }
+
+            } catch (err) {
+                console.error("Audio Engine Error:", err);
+                break;
+            }
+        }
+    };
+
+    const handlePhraseStopped = (payload: { playerId: string }) => {
+        const { playerId } = payload;
+        if (playerId === socket.id) setMyActivePhraseId(null);
+
+        if (loopsRef.current.has(playerId)) {
+            const loop = loopsRef.current.get(playerId)!;
+            loop.shouldLoop = false;
+            if (loop.synth) loop.synth.stop();
+            loopsRef.current.delete(playerId);
+        }
+    };
+
+    socket.on('S:phrase-played', handlePhrasePlayed);
+    socket.on('S:phrase-stopped', handlePhraseStopped);
+
+    return () => {
+        socket.off('S:phrase-played', handlePhrasePlayed);
+        socket.off('S:phrase-stopped', handlePhraseStopped);
+        loopsRef.current.forEach(loop => {
+            loop.shouldLoop = false;
+            if (loop.synth) loop.synth.stop();
+        });
+        loopsRef.current.clear();
+    };
+  }, []);
+  
   return (
     <Flex direction='row' h="100vh" overflow="hidden" bg="gray.50">
         
-        {/* SIDEBAR: Roster */}
+        {/* SIDEBAR: Roster (No changes needed) */}
         <Flex 
             direction='column' 
             p={6} 
@@ -94,7 +205,6 @@ function HostView() {
             </Text>            
             
             <VStack w="100%" gap={3} overflowY="auto">
-                {/* Ensure the Host is always at the top */}
                 <ParticipantRow name="You (Host)" role="Conductor" isHost />
                 {participants.map((p) => (
                     <ParticipantRow key={p.id} name={p.name} role={p.role} />
@@ -102,16 +212,21 @@ function HostView() {
             </VStack>
         </Flex>
 
-        {/* MAIN STAGE: Phrase Monitor */}
+        {/* MAIN STAGE */}
         <Box flex="1" p={8} overflowY="auto">
-            <Heading size="lg" mb={2}>Orchestra Deck</Heading>
+            <Heading size="lg" mb={2}>Soundboard</Heading>
             <Text color="gray.500" mb={8}>
-                Click any phrase to preview it locally. Your students have these on their screens.
+                Session is live. You and the players have full control.
             </Text>
             
             <SimpleGrid columns={{ base: 1, xl: 2, '2xl': 3 }} gap={6}>
                {PRESET_PHRASES.map((phrase) => (
-                    <PhrasePreview key={phrase.id} phrase={phrase} />
+                    <JamButton 
+                        key={phrase.id} 
+                        phrase={phrase} 
+                        roomCode={roomCode!}
+                        isActive={myActivePhraseId === phrase.id} // roomCode is guaranteed here 
+                    />
                ))}
             </SimpleGrid>
         </Box>
